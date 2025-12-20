@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<interface>
+  <object id='mainWindow' class='GtkApplicationWindow'>
+    <property name='title' translatable='true'>Vocagtk</property>
+    <child><object id='mainNavigator' class='GtkNotebook'>
+      <property name='tab-pos'>0</property>
+
+      <child><object id='homePage' class='GtkScrolledWindow'/></child>
+
+      <child type='tab'><object class='GtkImage'>
+        <property name='icon-name'>home</property>
+      </object></child>
+
+      <child><object id='searchPage' class='GtkScrolledWindow'>
+      </object></child>
+
+      <child type='tab'><object class='GtkImage'>
+        <property name='icon-name'>search</property>
+      </object></child>
+
+      <child><object class='GtkBox'>
+        <child><object class='GtkLabel'>
+          <property name='label'>Hello, VocaDB!</property>
+        </object></child>
+      </object></child>
+
+      <child type='tab'><object class='GtkImage'>
+        <property name='icon-name'>rss</property>
+      </object></child>
+
+      <child><object class='GtkBox'>
+        <child><object class='GtkLabel'>
+          <property name='label'>Hello, Mpv!</property>
+        </object></child>
+      </object></child>
+
+      <child type='tab'><object class='GtkImage'>
+        <property name='icon-name'>media-playback-playing</property>
+      </object></child>
+
+    </object></child>
+  </object>
+</interface>

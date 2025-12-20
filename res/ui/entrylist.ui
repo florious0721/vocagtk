@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<interface>
+  <object id='entryList' class='GtkBox'>
+    <property name='orientation'>vertical</property>
+
+    <child><object id='controls' class='GtkBox'>
+      <property name='orientation'>horizontal</property>
+      <property name='spacing'>6</property>
+      <property name='margin-start'>10</property>
+      <property name='margin-end'>10</property>
+      <property name='margin-top'>10</property>
+      <property name='margin-bottom'>6</property>
+
+      <child><object id='playlistSelect' class='GtkDropDown'/></child>
+
+      <child><object class='GtkGrid'>
+        <child><object id='addSelected' class='GtkButton'>
+          <property name='label'>Add</property>
+          <property name='tooltip-text'>Add selected songs to the playlist</property>
+          <layout>
+            <property name='row'>0</property>
+            <property name='column'>0</property>
+          </layout>
+        </object></child>
+
+        <child><object id='addAll' class='GtkButton'>
+          <property name='label'>Add All</property>
+          <property name='tooltip-text'>Add all songs in the list to the playlist</property>
+          <layout>
+            <property name='row'>1</property>
+            <property name='column'>0</property>
+          </layout>
+        </object></child>
+      </object></child>
+
+      <child><object class='GtkBox'>
+        <property name='orientation'>vertical</property>
+
+        <child><object id='subscribe' class='GtkButton'>
+          <property name='label'>Subscribe</property>
+          <property name='tooltip-text'>Subscribe selected artists</property>
+        </object></child>
+
+        <child><object id='subscribeAll' class='GtkButton'>
+          <property name='label'>Subscribe All</property>
+          <property name='tooltip-text'>Subscribe all artists in the list</property>
+        </object></child>
+      </object></child>
+
+    </object></child>
+
+    <child><object class='GtkListView'>
+      <property name='model'><object class='GtkMultiSelection'>
+        <property name='model'><object id='model' class='GListStore'>
+          <property name='item-type'>VocagtkEntry</property>
+        </object></property>
+      </object></property>
+
+      <property name='factory'>
+        <object id='factory' class='GtkSignalListItemFactory'/>
+      </property>
+    </object></child>
+  </object>
+</interface>

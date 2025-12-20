@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<interface>
+  <template class='VocagtkEntryBox' parent='GtkBox'>
+    <property name='orientation'>horizontal</property>
+    <property name='spacing'>5</property>
+    <property name='margin-bottom'>10</property>
+    <property name='margin-end'>10</property>
+    <property name='margin-start'>10</property>
+    <property name='margin-top'>10</property>
+
+    <child><object id='image' class='GtkImage'>
+      <property name='pixel-size'>64</property>
+    </object></child>
+
+    <child><object class='GtkBox'>
+      <property name='orientation'>vertical</property>
+      <property name='spacing'>4</property>
+      <property name='halign'>start</property>
+      <property name='hexpand'>true</property>
+
+      <child><object class='GtkBox'>
+        <property name='orientation'>horizontal</property>
+        <property name='hexpand'>true</property>
+
+        <child><object id='type_label' class='GtkLabel'/></child>
+
+        <child><object id='main_info' class='GtkLabel'>
+          <property name='ellipsize'>end</property>
+        </object></child>
+      </object></child>
+
+      <child><object id='sub_info' class='GtkLabel'>
+        <property name='ellipsize'>end</property>
+      </object></child>
+    </object></child>
+
+    <child><object class='GtkBox'>
+      <property name='orientation'>vertical</property>
+      <property name='spacing'>5</property>
+
+      <child><object id='watch' class='GtkButton'>
+        <property name='label'>Add/Subscribe 👁</property>
+        <property name='tooltip-text'>Add to playlist or subscribe</property>
+      </object></child>
+
+      <child><object id='view_src' class='GtkButton'>
+        <property name='label'>VocaDB 🔗</property>
+        <property name='tooltip-text'>View this entry in vocadb.net</property>
+      </object></child>
+    </object></child>
+  </template>
+</interface>
+
