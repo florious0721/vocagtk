@@ -6,7 +6,9 @@
 #include <gtk/gtk.h>
 #include <sqlite3.h>
 #include <stdlib.h>
+#include <time.h>
 
+#include "exterr.h"
 #include "dl.h"
 
 typedef struct {
@@ -41,4 +43,34 @@ static inline size_t curl_g_byte_array_writer(
     g_byte_array_append(dest, src, size * n);
     return dest->len - old_len;
 }
+
+// Parse ISO 8601 datetime string (e.g., "2025-12-23T12:49:23.070Z") to time_t
+static inline time_t parse_iso8601_datetime(char const *datetime_str) {
+    if (!datetime_str) return -1;
+
+    struct tm tm = {0};
+    // Parse format: YYYY-MM-DDTHH:MM:SS (ignore milliseconds and timezone)
+    int parsed = sscanf(datetime_str, "%d-%d-%dT%d:%d:%d",
+        &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+        &tm.tm_hour, &tm.tm_min, &tm.tm_sec);
+
+    if (parsed < 6) {
+        DEBUG("Failed to parse datetime: %s", datetime_str);
+        return -1;
+    }
+
+    // Adjust tm structure
+    tm.tm_year -= 1900;  // tm_year is years since 1900
+    tm.tm_mon -= 1;      // tm_mon is 0-11
+    tm.tm_isdst = -1;    // Let mktime determine DST
+
+    // Convert to time_t (assumes UTC, as the string has 'Z' suffix)
+    time_t result = timegm(&tm);
+    if (result == -1) {
+        DEBUG("timegm failed for datetime: %s", datetime_str);
+    }
+
+    return result;
+}
+
 #endif

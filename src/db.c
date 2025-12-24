@@ -175,6 +175,7 @@ int db_song_add_from_json(sqlite3 *db, yyjson_val *song_json) {
     yyjson_val *title_val = yyjson_obj_get(song_json, "name");
     yyjson_val *artist_val = yyjson_obj_get(song_json, "artistString");
     yyjson_val *picture_val = yyjson_obj_get(song_json, "mainPicture");
+    yyjson_val *publish_date_val = yyjson_obj_get(song_json, "publishDate");
 
     if (!id_val) return SQLITE_ERROR;
 
@@ -189,10 +190,18 @@ int db_song_add_from_json(sqlite3 *db, yyjson_val *song_json) {
         if (yyjson_is_str(thumb)) image_url = yyjson_get_str(thumb);
     }
 
+    // Parse publishDate string to unix timestamp using helper
+    time_t publish_date = 0;
+    if (yyjson_is_str(publish_date_val)) {
+        const char *publish_date_str = yyjson_get_str(publish_date_val);
+        publish_date = parse_iso8601_datetime(publish_date_str);
+        if (publish_date == (time_t) -1) publish_date = 0;
+    }
+
     DEBUG("Save song %d to db from JSON.", id);
     char const *sql =
-        "REPLACE INTO song(id, title, artist, image_url)"
-        "VALUES(?, ?, ?, ?);";
+        "REPLACE INTO song(id, title, artist, image_url, publish_date)"
+        "VALUES(?, ?, ?, ?, ?);";
 
     sqlite3_stmt *stmt;
     int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -205,6 +214,7 @@ int db_song_add_from_json(sqlite3 *db, yyjson_val *song_json) {
     sqlite3_bind_text(stmt, 2, title, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 3, artist, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 4, image_url, -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 5, publish_date);
 
     rcode = sqlite3_step(stmt);
     if (rcode != SQLITE_DONE) {
@@ -365,10 +375,10 @@ VocagtkSong *db_song_from_row(sqlite3_stmt *stmt, int *sql_err) {
 }
 
 int db_song_add(sqlite3 *db, VocagtkSong const *song) {
-    DEBUG("Save album %d to db.", song->id);
+    DEBUG("Save song %d to db.", song->id);
     char const *sql =
-        "REPLACE INTO song(id, title, artist)"
-        "VALUES(?, ?, ?);";
+        "REPLACE INTO song(id, title, artist, image_url, publish_date)"
+        "VALUES(?, ?, ?, ?, ?);";
 
     sqlite3_stmt *stmt;
     int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -377,6 +387,8 @@ int db_song_add(sqlite3 *db, VocagtkSong const *song) {
     sqlite3_bind_int(stmt, 1, song->id);
     sqlite3_bind_text(stmt, 2, song->title->str, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 3, song->artist->str, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 4, song->image_url->str, -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 5, song->publish_date);
 
     rcode = sqlite3_step(stmt);
     if (rcode != SQLITE_DONE) goto clean;
