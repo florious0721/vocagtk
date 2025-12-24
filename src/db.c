@@ -672,15 +672,17 @@ int db_entry_add(sqlite3 *db, VocagtkEntry const *entry) {
  * Create a new playlist with the given name
  * @param db Database connection
  * @param name Playlist name (must be unique)
- * @return SQLITE_OK on success, error code on failure
+ * @param sql_err Output parameter for error code (can be NULL)
+ * @return Number of playlists created (1 if newly created, 0 if already exists)
  */
-int db_playlist_create(sqlite3 *db, char const *name) {
-    char const *sql = "INSERT INTO playlist(name) VALUES(?);";
+int db_playlist_create(sqlite3 *db, char const *name, int *sql_err) {
+    char const *sql = "INSERT OR IGNORE INTO playlist(name) VALUES(?);";
     sqlite3_stmt *stmt = NULL;
     int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rcode != SQLITE_OK) {
         vocagtk_warn_sql_db(db);
-        return rcode;
+        if (sql_err) *sql_err = rcode;
+        return 0;
     }
 
     sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
@@ -689,12 +691,17 @@ int db_playlist_create(sqlite3 *db, char const *name) {
     if (rcode != SQLITE_DONE) {
         vocagtk_warn_sql_db(db);
         sqlite3_finalize(stmt);
-        return rcode;
+        if (sql_err) *sql_err = rcode;
+        return 0;
     }
 
-    DEBUG("Created playlist '%s'", name);
+    // Get number of rows affected: 1 = newly created, 0 = already exists
+    int changes = sqlite3_changes(db);
     sqlite3_finalize(stmt);
-    return SQLITE_OK;
+
+    if (sql_err) *sql_err = SQLITE_OK;
+    DEBUG("Created playlist '%s' (changes: %d)", name, changes);
+    return changes;
 }
 
 /**

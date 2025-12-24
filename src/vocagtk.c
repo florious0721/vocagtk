@@ -131,11 +131,11 @@ static sqlite3 *init_database(void) {
         "ON UPDATE CASCADE ON DELETE CASCADE"
         ");",
 
-        "INSERT OR IGNORE INTO playlist(name) VALUES('Default');",
+        //"INSERT OR IGNORE INTO playlist(name) VALUES('Default');",
     };
 
     char *errmsg;
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 9; ++i) {
         if (sqlite3_exec(r, sqls[i], NULL, NULL, &errmsg) != SQLITE_OK) {
             vocagtk_warn_sql("%s", errmsg);
         }

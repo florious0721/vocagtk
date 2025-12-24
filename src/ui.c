@@ -72,10 +72,7 @@ static void watch_entries(GtkButton *_, EntryListCtx *ctx) {
     GtkBitset *selection = gtk_selection_model_get_selection(ctx->select);
     guint selection_size = gtk_bitset_get_size(selection);
 
-    if (selection_size == 0) {
-        DEBUG("No entries selected for watch operation");
-        return;
-    }
+    if (selection_size == 0) return;
 
     DEBUG("Starting batch watch for %u selected entries", selection_size);
 
@@ -118,10 +115,7 @@ static void unwatch_entries(GtkButton *_, EntryListCtx *ctx) {
     GtkBitset *selection = gtk_selection_model_get_selection(ctx->select);
     guint selection_size = gtk_bitset_get_size(selection);
 
-    if (selection_size == 0) {
-        DEBUG("No entries selected for unwatch operation");
-        return;
-    }
+    if (selection_size == 0) return;
 
     DEBUG("Starting batch unwatch for %u selected entries", selection_size);
 
@@ -279,16 +273,15 @@ static void select_playlist_global(GtkDropDown *dropdown, GParamSpec *spec,
  * @param self GtkDropDown widget
  * @param ctx EntryListCtx to update
  */
-static void select_playlist(GtkDropDown *self, EntryListCtx *ctx) {
+static void select_playlist(GtkDropDown *self, GParamSpec *spec,
+    EntryListCtx *ctx) {
     // Get the selected item from dropdown
     GtkStringObject *selected = GTK_STRING_OBJECT(
         gtk_drop_down_get_selected_item(self)
     );
 
     if (!selected) {
-        DEBUG("No playlist selected in dropdown");
         ctx->playlist_name = NULL;
-
         return;
     }
 
@@ -297,7 +290,6 @@ static void select_playlist(GtkDropDown *self, EntryListCtx *ctx) {
     if (!playlist_name) {
         DEBUG("Failed to get playlist name from selected item");
         ctx->playlist_name = NULL;
-
         return;
     }
 
@@ -339,14 +331,61 @@ static void create_playlist(GtkButton *button, PlaylistCreateCtx *ctx) {
         return;
     }
 
-    sql_err = db_playlist_create(ctx->app->db, name);
+    int changed = db_playlist_create(ctx->app->db, name, &sql_err);
 
     if (sql_err != SQLITE_OK) {
         vocagtk_warn_sql_db(ctx->app->db);
         return;
     }
 
-    gtk_string_list_append(ctx->app->playlists, name);
+    if (changed) gtk_string_list_append(ctx->app->playlists, name);
+}
+
+/**
+ * Delete the currently selected playlist
+ * @param _ GtkButton that triggered the action (unused)
+ * @param ctx AppState containing current playlist information
+ */
+static void delete_playlist(GtkButton *_, AppState *ctx) {
+    (void) _; // Mark unused parameter
+
+    // Check if a playlist is currently selected
+    if (!ctx->current_playlist_name) return;
+
+    // Delete playlist from database
+    int rcode = db_playlist_delete(ctx->db, ctx->current_playlist_name);
+    if (rcode != SQLITE_OK) {
+        vocagtk_warn_sql_db(ctx->db);
+        return;
+    }
+
+    // Clear the current playlist display before removing from dropdown
+    // This ensures UI consistency before dropdown selection changes
+    g_list_store_remove_all(ctx->current_playlist);
+
+    // Find and remove the playlist from GtkStringList
+    guint n_items = g_list_model_get_n_items(G_LIST_MODEL(ctx->playlists));
+    for (guint i = 0; i < n_items; i++) {
+        GtkStringObject *item = g_list_model_get_item(
+            G_LIST_MODEL(ctx->playlists), i
+        );
+        if (item) {
+            char const *name = gtk_string_object_get_string(item);
+            if (g_strcmp0(name, ctx->current_playlist_name) == 0) {
+                gtk_string_list_remove(ctx->playlists, i);
+                g_object_unref(item);
+                DEBUG(
+                    "Removed playlist '%s' from UI list at position %u",
+                    ctx->current_playlist_name, i
+                );
+                break;
+            }
+            g_object_unref(item);
+        }
+    }
+
+    // Note: current_playlist_name will be updated automatically by
+    // the dropdown's "notify::selected-item" signal callback
 }
 
 void build_entry_list(GtkBuilder *builder, AppState *ctx, bool is_remove) {
@@ -364,7 +403,29 @@ void build_entry_list(GtkBuilder *builder, AppState *ctx, bool is_remove) {
     listctx->app = ctx;
     listctx->select = GTK_SELECTION_MODEL(select);
     listctx->store = G_LIST_STORE(model);
-    listctx->playlist_name = "Default";
+
+    // Initialize playlist_name from dropdown selection
+    if (dropdown) {
+        gtk_drop_down_set_model(
+            GTK_DROP_DOWN(dropdown),
+            G_LIST_MODEL(ctx->playlists)
+        );
+        g_signal_connect(
+            dropdown, "notify::selected-item",
+            G_CALLBACK(select_playlist), listctx
+        );
+
+        GtkStringObject *selected = GTK_STRING_OBJECT(
+            gtk_drop_down_get_selected_item(GTK_DROP_DOWN(dropdown))
+        );
+        if (selected) {
+            listctx->playlist_name = gtk_string_object_get_string(selected);
+        } else {
+            listctx->playlist_name = NULL;
+        }
+    } else {
+        listctx->playlist_name = NULL;
+    }
 
     // bug here ?
     g_signal_connect(
@@ -377,33 +438,35 @@ void build_entry_list(GtkBuilder *builder, AppState *ctx, bool is_remove) {
         G_CALLBACK(toggle_select_all), select
     );
 
-    g_signal_connect(
-        button, "clicked",
-        G_CALLBACK(is_remove ? unwatch_entries : watch_entries), listctx
-    );
+    if (is_remove) {
+        gtk_button_set_label(
+            GTK_BUTTON(button),
+            "Remove/Unsubscribe"
+        );
+        g_signal_connect(
+            button, "clicked",
+            G_CALLBACK(unwatch_entries), listctx
+        );
 
-    g_signal_connect(
+        g_signal_connect(
+            factory, "setup",
+            G_CALLBACK(remove_entry_factory_setup), listctx
+        );
+    } else {
+        g_signal_connect(
+            button, "clicked",
+            G_CALLBACK(watch_entries), listctx
+        );
+
+        g_signal_connect(
         factory, "setup",
-        G_CALLBACK(
-            is_remove
-            ? remove_entry_factory_setup
-            : add_entry_factory_setup
-        ), listctx
-    );
+        G_CALLBACK(add_entry_factory_setup), listctx
+        );
+    }
     g_signal_connect(
         factory, "bind",
         G_CALLBACK(entry_factory_bind), listctx
     );
-
-    // Connect dropdown to update songlist_id when selection changes
-    if (dropdown) {
-        gtk_drop_down_set_model(GTK_DROP_DOWN(dropdown),
-            G_LIST_MODEL(ctx->playlists));
-        g_signal_connect(
-            dropdown, "notify::selected-item",
-            G_CALLBACK(select_playlist), listctx
-        );
-    }
 }
 
 void build_rss_artist_box(GtkBuilder *main, AppState *ctx) {
@@ -551,15 +614,40 @@ void build_playlist(GtkBuilder *main, AppState *ctx) {
     );
 
     GObject *box = gtk_builder_get_object(main, "playlist_page");
-    GObject *root = gtk_builder_get_object(builder, "root");
-    GObject *ctrl = gtk_builder_get_object(ctrl_builder, "playlist_control");
 
+    GObject *root = gtk_builder_get_object(builder, "root");
     GObject *select = gtk_builder_get_object(builder, "playlist_select");
     GObject *list = gtk_builder_get_object(builder, "model");
+    GObject *c = gtk_builder_get_object(builder, "controls");
+
+    GObject *ctrl = gtk_builder_get_object(ctrl_builder, "playlist_control");
+
+    GtkWidget *delete = gtk_button_new_with_label("Delete");
 
     ctx->playlist_select = GTK_DROP_DOWN(select);
     ctx->current_playlist = G_LIST_STORE(list);
-    ctx->current_playlist_name = "Default";
+
+    // Setup dropdown model and signal before initializing current_playlist_name
+    // Initialize current_playlist_name from dropdown selection
+    if (ctx->playlist_select) {
+        gtk_drop_down_set_model(ctx->playlist_select,
+            G_LIST_MODEL(ctx->playlists));
+        g_signal_connect(
+            ctx->playlist_select, "notify::selected-item",
+            G_CALLBACK(select_playlist_global), ctx
+        );
+
+        GtkStringObject *selected = GTK_STRING_OBJECT(
+            gtk_drop_down_get_selected_item(ctx->playlist_select)
+        );
+        if (selected) {
+            ctx->current_playlist_name = gtk_string_object_get_string(selected);
+        } else {
+            ctx->current_playlist_name = NULL;
+        }
+    } else {
+        ctx->current_playlist_name = NULL;
+    }
 
     sqlite3_stmt *stmt;
     int rcode = db_playlist_get_songs(ctx->db, ctx->current_playlist_name,
@@ -583,26 +671,16 @@ void build_playlist(GtkBuilder *main, AppState *ctx) {
         sqlite3_finalize(stmt);
     } else {
         vocagtk_warn_sql_db(ctx->db);
-        DEBUG("Failed to load songs from default playlist");
     }
 
-    // Connect dropdown to global playlist selection
-    if (ctx->playlist_select) {
-        gtk_drop_down_set_model(ctx->playlist_select,
-            G_LIST_MODEL(ctx->playlists));
-        g_signal_connect(
-            ctx->playlist_select, "notify::selected-item",
-            G_CALLBACK(select_playlist_global), ctx
-        );
-    }
+    g_signal_connect(delete, "clicked", G_CALLBACK(delete_playlist), ctx);
 
     build_entry_list(builder, ctx, true);
-
-    // Build control panel (create/delete buttons)
     build_ctrl(ctrl_builder, ctx);
 
     gtk_box_append(GTK_BOX(box), GTK_WIDGET(ctrl));
     gtk_box_append(GTK_BOX(box), GTK_WIDGET(root));
+    gtk_box_append(GTK_BOX(c), GTK_WIDGET(delete));
 
     g_object_unref(builder);
     g_object_unref(ctrl_builder);
@@ -820,26 +898,12 @@ void watch_entry(VocagtkEntry *entry, EntryListCtx *list_ctx, int position) {
         }
 
         if (song_inserted > 0) {
-            DEBUG(
-                "Added song %d to playlist '%s'",
-                id, list_ctx->playlist_name
-            );
-
             // Check if this playlist is currently displayed
             if (list_ctx->app->current_playlist_name &&
                  g_strcmp0(list_ctx->playlist_name,
                 list_ctx->app->current_playlist_name) == 0) {
                 g_list_store_append(list_ctx->app->current_playlist, entry);
-                DEBUG(
-                    "Appended song %d to current playlist UI (playlist '%s')",
-                    id, list_ctx->playlist_name
-                );
             }
-        } else {
-            DEBUG(
-                "Song %d already in playlist '%s'",
-                id, list_ctx->playlist_name
-            );
         }
 
         break;
@@ -862,7 +926,31 @@ void unwatch_entry(VocagtkEntry *entry, EntryListCtx *list_ctx, int position) {
         refresh_rss_song(list_ctx->app);
         break;
     case VOCAGTK_ENTRY_TYPE_LABEL_SONG:
-        DEBUG("Song remove not implemented.");
+        // Remove song from selected playlist
+        if (!list_ctx->playlist_name) {
+            vocagtk_warn_def("No playlist selected, cannot remove song");
+            break;
+        }
+
+        int song_id = entry->entry.song->id;
+        DEBUG("Removing song %d from playlist '%s'", song_id,
+            list_ctx->playlist_name);
+
+        // Remove song from the playlist in database
+        int rcode = db_playlist_remove_song(
+            list_ctx->app->db,
+            list_ctx->playlist_name,
+            song_id
+        );
+
+        if (rcode != SQLITE_OK) {
+            vocagtk_warn_sql_db(list_ctx->app->db);
+            break;
+        }
+
+        // Remove from UI list store
+        g_list_store_remove(list_ctx->store, position);
+
         break;
     default:
         break;

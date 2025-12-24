@@ -15,10 +15,10 @@
       <property name='label'>Create</property>
     </object></child>
 
-    <child><object id='delete' class='GtkButton'>
+    <!--<child><object id='delete' class='GtkButton'>
       <property name='halign'>end</property>
       <property name='hexpand'>true</property>
       <property name='label'>Delete</property>
-    </object></child>
+    </object></child>-->
   </object>
 </interface>

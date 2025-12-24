@@ -34,8 +34,9 @@ int db_rss_remove_artist(sqlite3 *db, int artist_id);
 int db_entry_add(sqlite3 *db, VocagtkEntry const *entry);
 
 // Playlist operations
-// Returns: SQLITE_OK on success, error code otherwise
-int db_playlist_create(sqlite3 *db, char const *name);
+// Returns: number of playlists created (1 if newly created, 0 if already exists)
+// sql_err: receives SQLite error code if provided
+int db_playlist_create(sqlite3 *db, char const *name, int *sql_err);
 int db_playlist_delete(sqlite3 *db, char const *name);
 int db_playlist_rename(sqlite3 *db, char const *old_name, char const *new_name);
 // Initialize a stmt, which can then be used to get playlist names
