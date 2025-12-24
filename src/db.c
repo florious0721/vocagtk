@@ -462,6 +462,24 @@ int db_insert_song_albums(sqlite3 *db, yyjson_val *song_json, int *sql_err) {
         yyjson_val *album_id_val = yyjson_obj_get(album, "id");
         if (!album_id_val) continue;
         int album_id = (int) yyjson_get_int(album_id_val);
+
+        // Check if album exists in album table
+        char const *check_sql = "SELECT 1 FROM album WHERE id = ?;";
+        sqlite3_stmt *check_stmt;
+        int check_rcode = sqlite3_prepare_v2(
+            db, check_sql, -1, &check_stmt, NULL
+        );
+        int exists = 0;
+        if (check_rcode == SQLITE_OK) {
+            sqlite3_bind_int(check_stmt, 1, album_id);
+            if (sqlite3_step(check_stmt) == SQLITE_ROW) exists = 1;
+            sqlite3_finalize(check_stmt);
+        }
+        if (!exists) {
+            // Insert album if not exists
+            db_album_add_from_json(db, album);
+        }
+
         sqlite3_reset(stmt);
         sqlite3_clear_bindings(stmt);
         sqlite3_bind_int(stmt, 1, song_id);
@@ -497,6 +515,23 @@ int db_insert_song_artists(sqlite3 *db, yyjson_val *song_json, int *sql_err) {
         yyjson_val *artist_id_val = yyjson_obj_get(artist_val, "id");
         if (!artist_id_val) continue;
         int artist_id = (int) yyjson_get_int(artist_id_val);
+
+        // Check if artist exists in artist table
+        char const *check_sql = "SELECT 1 FROM artist WHERE id = ?;";
+        sqlite3_stmt *check_stmt;
+        int check_rcode = sqlite3_prepare_v2(db, check_sql, -1, &check_stmt,
+            NULL);
+        bool exists = false;
+        if (check_rcode == SQLITE_OK) {
+            sqlite3_bind_int(check_stmt, 1, artist_id);
+            if (sqlite3_step(check_stmt) == SQLITE_ROW) exists = true;
+            sqlite3_finalize(check_stmt);
+        }
+        if (!exists) {
+            // Insert artist if not exists
+            db_artist_add_from_json(db, artist_val);
+        }
+
         sqlite3_reset(stmt);
         sqlite3_clear_bindings(stmt);
         sqlite3_bind_int(stmt, 1, song_id);
