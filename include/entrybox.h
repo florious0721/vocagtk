@@ -25,7 +25,7 @@ VocagtkEntryBox *vocagtk_entry_box_new(
 );
 
 typedef struct _VocagtkEntryBox {
-    GtkWidget parent_instance;
+    GtkBox parent_type;
 
     GtkImage  *image;
     GtkLabel  *type_label;
@@ -34,9 +34,9 @@ typedef struct _VocagtkEntryBox {
     GtkButton *add_or_remove; // Add or subscribe
     GtkButton *view_src;
 
-    EntryListCtx *list;
-    VocagtkEntry *entry; // A reference to the entry bound to this box, but this won't add reference count
-    GtkListItem *item;
+    EntryListCtx *list; // managed by entry list, doesn't take reference count
+    VocagtkEntry *entry; // A reference to the entry bound to this box, but doesn't take reference count
+    GtkListItem *item; // doesn't take reference count
 } VocagtkEntryBox;
 
 G_END_DECLS

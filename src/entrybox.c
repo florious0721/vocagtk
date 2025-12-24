@@ -75,11 +75,6 @@ static void unwatch(GtkButton *_, VocagtkEntryBox *box) {
 
 static void view_src(GtkButton *_, VocagtkEntryBox *box) {}
 
-static void vocagtk_entry_box_init(VocagtkEntryBox *self) {
-    gtk_widget_init_template(GTK_WIDGET(self));
-    self->entry = NULL;
-}
-
 static void vocagtk_entry_box_dispose(GObject *obj) {
     gtk_widget_dispose_template(GTK_WIDGET(obj), VOCAGTK_TYPE_ENTRY_BOX);
     G_OBJECT_CLASS(vocagtk_entry_box_parent_class)->dispose(obj);
@@ -112,6 +107,13 @@ static void vocagtk_entry_box_class_init(VocagtkEntryBoxClass *klass) {
     gtk_widget_class_bind_template_child(
         widget_class, VocagtkEntryBox, view_src
     );
+}
+
+static void vocagtk_entry_box_init(VocagtkEntryBox *self) {
+    gtk_widget_init_template(GTK_WIDGET(self));
+    self->list = NULL;
+    self->entry = NULL;
+    self->item = NULL;
 }
 
 void vocagtk_entry_box_bind(VocagtkEntryBox *self, VocagtkEntry *entry) {
@@ -149,6 +151,7 @@ VocagtkEntryBox *vocagtk_entry_box_new(
     VocagtkEntryBox *self = g_object_new(VOCAGTK_TYPE_ENTRY_BOX, NULL);
     self->list = list;
     self->item = item;
+    self->entry = entry;
 
     if (is_remove) {
         gtk_button_set_label(self->add_or_remove, "Remove/Unsubscribe 🚫");

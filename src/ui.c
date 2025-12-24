@@ -380,7 +380,6 @@ void call_init_rss_artist(AppState *ctx) {
             g_list_store_append(ctx->rss_artist, entry);
             g_object_unref(entry);
         }
-        g_object_unref(artist);
     }
 
     if (rcode != SQLITE_DONE) {
