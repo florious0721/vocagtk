@@ -1,6 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <interface>
   <object id='playlist_control' class='GtkBox'>
+    <property name='hexpand'>true</property>
     <property name='orientation'>horizontal</property>
     <property name='spacing'>5</property>
     <property name='margin-start'>10</property>
@@ -16,7 +17,8 @@
 
     <child><object id='delete' class='GtkButton'>
       <property name='halign'>end</property>
-      <property name='label'>delete</property>
+      <property name='hexpand'>true</property>
+      <property name='label'>Delete</property>
     </object></child>
   </object>
 </interface>

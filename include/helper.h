@@ -21,10 +21,11 @@ typedef struct {
     } search_widgets; // on build search
     GListStore *rss_artist; // on build rss
     GListStore *rss_song; // on build rss
-    GtkStringList *songlists; // before app activates
-    GtkDropDown *songlist_select; // on build songlist ?
-    GListStore *current_songlist; // on build songlist
-    int current_songlist_id; // on songlist change?
+    GtkStringList *playlists; // before app activates
+    GtkDropDown *playlist_select; // on build playlist
+    GListStore *current_playlist; // on build playlist
+    char const *current_playlist_name; // on playlist change
+
 } AppState;
 
 #define DEBUG(...) vocagtk_log("DEBUG", G_LOG_LEVEL_WARNING, __VA_ARGS__)

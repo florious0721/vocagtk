@@ -50,4 +50,12 @@ yyjson_val *vocagtk_result_iterator_next(
     VocagtkDownloader *dl, CURLcode *err
 );
 
+// Download image from URL and save to specified path.
+// Returns CURLE_OK on success.
+CURLcode vocagtk_downloader_image(
+    VocagtkDownloader *dl,
+    char const *url,
+    char const *out_path
+);
+
 #endif

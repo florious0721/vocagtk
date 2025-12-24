@@ -5,6 +5,7 @@
 #include <sqlite3.h>
 #include <yyjson.h>
 
+#include "db.h"
 #include "entrybox.h"
 #include "exterr.h"
 #include "ui.h"
@@ -118,22 +119,23 @@ static sqlite3 *init_database(void) {
         ");",
 
         "CREATE TABLE IF NOT EXISTS playlist("
-        "id INTEGER PRIMARY KEY,"
-        "name TEXT"
+        "name TEXT PRIMARY KEY"
         ");",
 
         "CREATE TABLE IF NOT EXISTS song_in_playlist("
-        "id INTEGER PRIMARY KEY,"
-        "song_id INTEGER, playlist_id INTEGER,"
+        "song_id INTEGER, playlist_name TEXT,"
+        "PRIMARY KEY(song_id, playlist_name),"
         "FOREIGN KEY (song_id) REFERENCES song(id)"
         "ON UPDATE CASCADE ON DELETE RESTRICT,"
-        "FOREIGN KEY (playlist_id) REFERENCES playlist(id)"
-        "ON UPDATE CASCADE ON DELETE RESTRICT"
+        "FOREIGN KEY (playlist_name) REFERENCES playlist(name)"
+        "ON UPDATE CASCADE ON DELETE CASCADE"
         ");",
+
+        "INSERT OR IGNORE INTO playlist(name) VALUES('Default');",
     };
 
     char *errmsg;
-    for (int i = 0; i < 9; ++i) {
+    for (int i = 0; i < 10; ++i) {
         if (sqlite3_exec(r, sqls[i], NULL, NULL, &errmsg) != SQLITE_OK) {
             vocagtk_warn_sql("%s", errmsg);
         }
@@ -163,16 +165,27 @@ int main(int argc, char **argv) {
         goto clean;
     }
 
-    state.dl.cache_path = "/tmp/vocagtk/cache";
+    state.dl.cache_path = "./cache/";
     state.dl.handle = curl_easy_init();
     if (!state.dl.handle) {
         status = 1;
         goto clean;
     }
 
-    state.songlists = gtk_string_list_new(NULL);
+    state.playlists = gtk_string_list_new(NULL);
 
-    headers = curl_slist_append(
+    // Load playlist names from database into playlists
+    sqlite3_stmt *stmt;
+    if (db_playlist_get_all(state.db, &stmt) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            char const *name = sqlite3_column_str(stmt, 0);
+            gtk_string_list_append(state.playlists, name);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+
+    /*headers = curl_slist_append(
         headers,
         "Cookie: cf_clearance=2KUVcv8AGzrgktzUK28bbHmv_t.l1gvI5GjnYOu9bng-1766191196-1.2.1.1-F68vdmbpw4uxsowg5vkWvVhWEy16UlfjnbkS3.9Wkzc6VoeKnaRiit5OdFjSnflzBV4PKvkvQCoZV3QfOzd7CX48v3rdOHYVIY2wUahyxcDHtq6JdIY.WlF.OZc4oCfblKcOB5.bDAjq1khyfIp4DdYcSbY5aS1sJk8w3s0X97qE03nBChH_XYkVHgi4cwRyBGCDL8x3B2aJt8GmzVixM3XFwyWPAW8NQ41NE8958vU"
     );
@@ -180,7 +193,7 @@ int main(int argc, char **argv) {
         headers,
         "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:144.0) Gecko/20100101 Firefox/144.0"
     );
-    curl_easy_setopt(state.dl.handle, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(state.dl.handle, CURLOPT_HTTPHEADER, headers);*/
 
     app = gtk_application_new(
         "moe.florious0721.vocagtk",
@@ -198,8 +211,8 @@ clean:
     if (app) g_object_unref(app);
     if (state.dl.handle) curl_easy_cleanup(state.dl.handle);
     if (state.db) sqlite3_close(state.db);
-    if (state.songlists) g_object_unref(state.songlists);
-    if (headers) curl_slist_free_all(headers);
+    if (state.playlists) g_object_unref(state.playlists);
+    //if (headers) curl_slist_free_all(headers);
 
     return status;
 }

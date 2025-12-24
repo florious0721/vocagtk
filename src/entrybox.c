@@ -7,70 +7,13 @@
 G_DEFINE_TYPE(VocagtkEntryBox, vocagtk_entry_box, GTK_TYPE_BOX)
 
 static void watch(GtkButton *_, VocagtkEntryBox *box) {
-    int id = -1;
-    DEBUG("Clicked entry at %d", gtk_list_item_get_position(box->item));
-    switch (box->entry->type_label) {
-    case VOCAGTK_ENTRY_TYPE_LABEL_ALBUM:
-        DEBUG("Album add not implemented.");
-    case VOCAGTK_ENTRY_TYPE_LABEL_ARTIST:
-        id = box->entry->entry.artist->id;
-        int sql_err = SQLITE_OK;
-        int inserted = db_rss_add_artist(
-            box->list->app->db,
-            box->entry->entry.artist->id,
-            &sql_err
-        );
-
-        if (sql_err != SQLITE_OK) {
-            DEBUG("Failed to add artist %d to RSS, error code: %d", id,
-                sql_err);
-            break;
-        }
-
-        VocagtkArtist *artist = vocagtk_artist_new(id, box->list->app);
-
-        if (inserted > 0) {
-            // Newly inserted, add to UI list
-            VocagtkEntry *entry = vocagtk_entry_new_artist(artist);
-            g_list_store_append(box->list->app->rss_artist, entry);
-            g_object_unref(entry);
-        } else {
-            DEBUG("Artist %d already subscribed", id);
-        }
-
-        // Always update artist's songs and refresh RSS song list
-        // (artist may have new songs even if already subscribed)
-        update_artist(box->list->app, artist);
-        refresh_rss_song(box->list->app);
-
-        break;
-    case VOCAGTK_ENTRY_TYPE_LABEL_SONG:
-        DEBUG("Song add not implemented.");
-    default:
-        break;
-    }
+    int position = gtk_list_item_get_position(box->item);
+    watch_entry(box->entry, box->list, position);
 }
 
 static void unwatch(GtkButton *_, VocagtkEntryBox *box) {
     int position = gtk_list_item_get_position(box->item);
-    DEBUG("Trying to remove entry at %d", position);
-
-    switch (box->entry->type_label) {
-    case VOCAGTK_ENTRY_TYPE_LABEL_ALBUM:
-        DEBUG("Album remove not implemented.");
-        break;
-    case VOCAGTK_ENTRY_TYPE_LABEL_ARTIST:
-        db_rss_remove_artist(box->list->app->db, box->entry->entry.artist->id);
-        g_list_store_remove(box->list->store, position);
-        // Refresh RSS song list after removing artist
-        refresh_rss_song(box->list->app);
-        break;
-    case VOCAGTK_ENTRY_TYPE_LABEL_SONG:
-        DEBUG("Song remove not implemented.");
-        break;
-    default:
-        break;
-    }
+    unwatch_entry(box->entry, box->list, position);
 }
 
 static void view_src(GtkButton *_, VocagtkEntryBox *box) {
@@ -98,8 +41,6 @@ static void view_src(GtkButton *_, VocagtkEntryBox *box) {
     gtk_uri_launcher_launch(launcher, NULL, NULL, NULL, NULL);
     g_object_unref(launcher);
 }
-
-
 
 static void vocagtk_entry_box_dispose(GObject *obj) {
     gtk_widget_dispose_template(GTK_WIDGET(obj), VOCAGTK_TYPE_ENTRY_BOX);
@@ -165,7 +106,72 @@ void vocagtk_entry_box_bind(VocagtkEntryBox *self, VocagtkEntry *entry) {
     }
     gtk_label_set_label(self->type_label, label);
 
-    gtk_image_set_from_file(self->image, "example/unknown.png");
+    // Get image URL from entry
+    char const *image_url = vocagtk_entry_get_image(entry);
+    char const *fallback_image = "example/unknown.png";
+
+    do {
+        if (!image_url) {
+            // No image URL available, use fallback
+            gtk_image_set_from_file(self->image, fallback_image);
+            break;
+        }
+
+        // Extract filename from URL
+        char const *filename = image_url + strlen(image_url);
+        while (*filename != '/' && filename != image_url) filename--;
+
+        if (filename == image_url) {
+            // Failed to extract filename, use fallback
+            DEBUG("Failed to extract filename from URL: %s", image_url);
+            gtk_image_set_from_file(self->image, fallback_image);
+            break;
+        }
+
+        // Build cache file path
+        GString *cache_path =
+            g_string_new(self->list->app->dl.cache_path);
+        g_string_append(cache_path, filename);
+
+        // Download image to cache if not exists
+        CURLcode curl_err = vocagtk_downloader_image(
+            &self->list->app->dl, image_url, cache_path->str
+        );
+
+        if (curl_err != CURLE_OK) {
+            // Download failed, use fallback
+            DEBUG(
+                "Failed to download image from %s, error: %s",
+                image_url, curl_easy_strerror(curl_err)
+            );
+            gtk_image_set_from_file(self->image, fallback_image);
+            g_string_free(cache_path, TRUE);
+            break;
+        }
+
+        // Load image as GdkTexture
+        GError *error = NULL;
+        GdkTexture *texture = gdk_texture_new_from_filename(cache_path->str, &error);
+
+        if (!texture) {
+            // Failed to load texture, use fallback
+            DEBUG(
+                "Failed to load texture from %s: %s",
+                cache_path->str, error ? error->message : "unknown error"
+            );
+            if (error) g_error_free(error);
+            gtk_image_set_from_file(self->image, fallback_image);
+            g_string_free(cache_path, TRUE);
+            break;
+        }
+
+        // Successfully loaded texture, set image
+        gtk_image_set_from_paintable(self->image, GDK_PAINTABLE(texture));
+        g_object_unref(texture);
+        //DEBUG("Loaded image texture from cache: %s", cache_path->str);
+        g_string_free(cache_path, TRUE);
+    } while (0);
+
     gtk_label_set_label(self->main_info, vocagtk_entry_get_main_info(entry));
     gtk_label_set_label(self->sub_info, vocagtk_entry_get_sub_info(entry));
 }
@@ -181,11 +187,15 @@ VocagtkEntryBox *vocagtk_entry_box_new(
 
     if (is_remove) {
         gtk_button_set_label(self->add_or_remove, "Remove/Unsubscribe 🚫");
-        g_signal_connect(self->add_or_remove, "clicked", G_CALLBACK(unwatch),
-            self);
+        g_signal_connect(
+            self->add_or_remove, "clicked",
+            G_CALLBACK(unwatch), self
+        );
     } else {
-        g_signal_connect(self->add_or_remove, "clicked", G_CALLBACK(watch),
-            self);
+        g_signal_connect(
+            self->add_or_remove, "clicked",
+            G_CALLBACK(watch), self
+        );
     }
 
     g_signal_connect(self->view_src, "clicked", G_CALLBACK(view_src), self);

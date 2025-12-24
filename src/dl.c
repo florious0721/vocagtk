@@ -156,22 +156,22 @@ clean:
     return NULL;
 }
 
-GdkTexture *vocagtk_downloader_image(
+CURLcode vocagtk_downloader_image(
     VocagtkDownloader *dl,
-    char const *url
+    char const *url,
+    char const *out_path
 ) {
-    return gdk_texture_new_from_filename("example/unknown.png", NULL);
-
-    // TODO: 图片下载与缓存
-    char const *filename = url + strlen(url);
-    while (*filename != '/' && filename != url) filename--;
-    if (filename == url) {
-        vocagtk_warn_def("Failed to get the filename of %s, use unknown", url);
+    // Check if file already exists
+    if (g_file_test(out_path, G_FILE_TEST_EXISTS)) {
+        //DEBUG("Image already cached at: %s", out_path);
+        return CURLE_OK;
     }
 
-    GString *path = g_string_new(dl->cache_path);
-    g_string_append(path, filename);
-    FILE *f = fopen(path->str, "wb");
+    FILE *f = fopen(out_path, "wb");
+    if (!f) {
+        vocagtk_warn_def("Failed to open file for writing: %s", out_path);
+        return CURLE_WRITE_ERROR;
+    }
 
     curl_easy_reset(dl->handle);
     curl_easy_setopt(dl->handle, CURLOPT_URL, url);
@@ -180,12 +180,9 @@ GdkTexture *vocagtk_downloader_image(
     CURLcode rc = curl_easy_perform(dl->handle);
     fclose(f);
 
-    if (rc != CURLE_OK) {}
-
-    GError *err = NULL;
-    GdkTexture *texture = gdk_texture_new_from_filename(path->str, &err);
-    if (err) {
-        g_error_free(err);
+    if (rc == CURLE_OK) {
+        DEBUG("Downloaded image to: %s", out_path);
     }
 
+    return rc;
 }

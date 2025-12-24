@@ -26,8 +26,13 @@ VocagtkAlbum *db_album_from_row(sqlite3_stmt *stmt, int *sql_err) {
 
 int db_album_add(sqlite3 *db, VocagtkAlbum const *album) {
     char const *sql =
-        "REPLACE INTO album(id, title, artist, cover_url, publish_date)"
-        "VALUES(?, ?, ?, ?, ?);";
+        "INSERT INTO album(id, title, artist, cover_url, publish_date) "
+        "VALUES(?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "title = excluded.title, "
+        "artist = excluded.artist, "
+        "cover_url = excluded.cover_url, "
+        "publish_date = excluded.publish_date;";
     DEBUG("Save album %d to db.", album->id);
 
     sqlite3_stmt *stmt;
@@ -69,8 +74,11 @@ int db_artist_add_from_json(sqlite3 *db, yyjson_val *artist_json) {
 
     DEBUG("Save artist %d to db from JSON.", id);
     char const *sql =
-        "REPLACE INTO artist(id, name, avatar_url, update_at)"
-        "VALUES(?, ?, ?, 0);";
+        "INSERT INTO artist(id, name, avatar_url, update_at) "
+        "VALUES(?, ?, ?, 0) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "name = excluded.name, "
+        "avatar_url = excluded.avatar_url;";
 
     sqlite3_stmt *stmt;
     int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -117,8 +125,12 @@ int db_album_add_from_json(sqlite3 *db, yyjson_val *album_json) {
 
     DEBUG("Save album %d to db from JSON.", id);
     char const *sql =
-        "REPLACE INTO album(id, title, artist, cover_url)"
-        "VALUES(?, ?, ?, ?);";
+        "INSERT INTO album(id, title, artist, cover_url) "
+        "VALUES(?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "title = excluded.title, "
+        "artist = excluded.artist, "
+        "cover_url = excluded.cover_url;";
 
     sqlite3_stmt *stmt;
     int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -200,8 +212,13 @@ int db_song_add_from_json(sqlite3 *db, yyjson_val *song_json) {
 
     DEBUG("Save song %d to db from JSON.", id);
     char const *sql =
-        "REPLACE INTO song(id, title, artist, image_url, publish_date)"
-        "VALUES(?, ?, ?, ?, ?);";
+        "INSERT INTO song(id, title, artist, image_url, publish_date) "
+        "VALUES(?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "title = excluded.title, "
+        "artist = excluded.artist, "
+        "image_url = excluded.image_url, "
+        "publish_date = excluded.publish_date;";
 
     sqlite3_stmt *stmt;
     int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -291,8 +308,12 @@ VocagtkArtist *db_artist_from_row(sqlite3_stmt *stmt, int *sql_err) {
 int db_artist_add(sqlite3 *db, VocagtkArtist const *artist) {
     DEBUG("Save artist %d to db.", artist->id);
     char const *sql =
-        "REPLACE INTO artist(id, name, avatar_url, update_at)"
-        "VALUES(?, ?, ?, ?);";
+        "INSERT INTO artist(id, name, avatar_url, update_at) "
+        "VALUES(?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "name = excluded.name, "
+        "avatar_url = excluded.avatar_url, "
+        "update_at = excluded.update_at;";
 
     sqlite3_stmt *stmt;
     int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -377,8 +398,13 @@ VocagtkSong *db_song_from_row(sqlite3_stmt *stmt, int *sql_err) {
 int db_song_add(sqlite3 *db, VocagtkSong const *song) {
     DEBUG("Save song %d to db.", song->id);
     char const *sql =
-        "REPLACE INTO song(id, title, artist, image_url, publish_date)"
-        "VALUES(?, ?, ?, ?, ?);";
+        "INSERT INTO song(id, title, artist, image_url, publish_date) "
+        "VALUES(?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "title = excluded.title, "
+        "artist = excluded.artist, "
+        "image_url = excluded.image_url, "
+        "publish_date = excluded.publish_date;";
 
     sqlite3_stmt *stmt;
     int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -638,4 +664,289 @@ int db_entry_add(sqlite3 *db, VocagtkEntry const *entry) {
         vocagtk_warn_def("Unknown type %d", entry->type_label);
         return SQLITE_ERROR;
     }
+}
+
+// Playlist operations
+
+/**
+ * Create a new playlist with the given name
+ * @param db Database connection
+ * @param name Playlist name (must be unique)
+ * @return SQLITE_OK on success, error code on failure
+ */
+int db_playlist_create(sqlite3 *db, char const *name) {
+    char const *sql = "INSERT INTO playlist(name) VALUES(?);";
+    sqlite3_stmt *stmt = NULL;
+    int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rcode != SQLITE_OK) {
+        vocagtk_warn_sql_db(db);
+        return rcode;
+    }
+
+    sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
+    rcode = sqlite3_step(stmt);
+
+    if (rcode != SQLITE_DONE) {
+        vocagtk_warn_sql_db(db);
+        sqlite3_finalize(stmt);
+        return rcode;
+    }
+
+    DEBUG("Created playlist '%s'", name);
+    sqlite3_finalize(stmt);
+    return SQLITE_OK;
+}
+
+/**
+ * Delete a playlist and all its song associations
+ * @param db Database connection
+ * @param name Playlist name to delete
+ * @return SQLite error code
+ */
+int db_playlist_delete(sqlite3 *db, char const *name) {
+    char const *sql = "DELETE FROM playlist WHERE name = ?;";
+    sqlite3_stmt *stmt;
+    int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rcode != SQLITE_OK) {
+        vocagtk_warn_sql_db(db);
+        return rcode;
+    }
+
+    sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
+    rcode = sqlite3_step(stmt);
+
+    if (rcode != SQLITE_DONE) {
+        vocagtk_warn_sql_db(db);
+        sqlite3_finalize(stmt);
+        return rcode;
+    }
+
+    DEBUG("Deleted playlist '%s'", name);
+    sqlite3_finalize(stmt);
+    return SQLITE_OK;
+}
+
+/**
+ * Rename a playlist
+ * @param db Database connection
+ * @param old_name Current playlist name
+ * @param new_name New name for the playlist
+ * @return SQLite error code
+ */
+int db_playlist_rename(sqlite3 *db, char const *old_name, char const *new_name) {
+    char const *sql = "UPDATE playlist SET name = ? WHERE name = ?;";
+    sqlite3_stmt *stmt;
+    int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rcode != SQLITE_OK) {
+        vocagtk_warn_sql_db(db);
+        return rcode;
+    }
+
+    sqlite3_bind_text(stmt, 1, new_name, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, old_name, -1, SQLITE_STATIC);
+    rcode = sqlite3_step(stmt);
+
+    if (rcode != SQLITE_DONE) {
+        vocagtk_warn_sql_db(db);
+        sqlite3_finalize(stmt);
+        return rcode;
+    }
+
+    DEBUG("Renamed playlist '%s' to '%s'", old_name, new_name);
+    sqlite3_finalize(stmt);
+    return SQLITE_OK;
+}
+
+/**
+ * Get all playlists
+ * @param db Database connection
+ * @param stmt Output parameter for prepared statement (caller must finalize)
+ * @return SQLite error code
+ *
+ * Usage:
+ *   sqlite3_stmt *stmt;
+ *   if (db_playlist_get_all(db, &stmt) == SQLITE_OK) {
+ *       while (sqlite3_step(stmt) == SQLITE_ROW) {
+ *           char const *name = sqlite3_column_str(stmt, 0);
+ *       }
+ *       sqlite3_finalize(stmt);
+ *   }
+ */
+int db_playlist_get_all(sqlite3 *db, sqlite3_stmt **stmt) {
+    char const *sql = "SELECT name FROM playlist ORDER BY name ASC;";
+    int rcode = sqlite3_prepare_v2(db, sql, -1, stmt, NULL);
+    if (rcode != SQLITE_OK) {
+        vocagtk_warn_sql_db(db);
+        return rcode;
+    }
+    return SQLITE_OK;
+}
+
+/**
+ * Check if a playlist exists
+ * @param db Database connection
+ * @param name Playlist name to check
+ * @param sql_err Output parameter for SQLite error code (can be NULL)
+ * @return 1 if exists, 0 if not found
+ *
+ * Usage:
+ *   int sql_err;
+ *   int exists = db_playlist_exists(db, "Default", &sql_err);
+ *   if (sql_err == SQLITE_OK) {
+ *       if (exists) {
+ *           // Playlist exists
+ *       } else {
+ *           // Playlist not found
+ *       }
+ *   } else {
+ *       // Error occurred
+ *   }
+ */
+int db_playlist_exists(sqlite3 *db, char const *name, int *sql_err) {
+    char const *sql = "SELECT 1 FROM playlist WHERE name = ? LIMIT 1;";
+    sqlite3_stmt *stmt;
+    int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rcode != SQLITE_OK) {
+        vocagtk_warn_sql_db(db);
+        if (sql_err) *sql_err = rcode;
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
+    rcode = sqlite3_step(stmt);
+
+    if (rcode == SQLITE_ROW) {
+        // Found the playlist
+        DEBUG("Playlist '%s' exists", name);
+        sqlite3_finalize(stmt);
+        if (sql_err) *sql_err = SQLITE_OK;
+        return 1;
+    } else if (rcode == SQLITE_DONE) {
+        // Playlist not found
+        DEBUG("Playlist '%s' not found", name);
+        sqlite3_finalize(stmt);
+        if (sql_err) *sql_err = SQLITE_OK;
+        return 0;
+    } else {
+        // Error occurred
+        vocagtk_warn_sql_db(db);
+        sqlite3_finalize(stmt);
+        if (sql_err) *sql_err = rcode;
+        return 0;
+    }
+}
+
+// Song in playlist operations
+
+/**
+ * Add a song to a playlist
+ * @param db Database connection
+ * @param playlist_name Playlist name
+ * @param song_id Song ID to add
+ * @param sql_err Output parameter for error code (can be NULL)
+ * @return Number of rows inserted (1 if newly added, 0 if already exists)
+ */
+int db_playlist_add_song(
+    sqlite3 *db, char const *playlist_name,
+    int song_id, int *sql_err
+) {
+    char const *sql =
+        "INSERT OR IGNORE INTO song_in_playlist(song_id, playlist_name) VALUES(?, ?);";
+    sqlite3_stmt *stmt;
+    int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rcode != SQLITE_OK) {
+        vocagtk_warn_sql_db(db);
+        if (sql_err) *sql_err = rcode;
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, song_id);
+    sqlite3_bind_text(stmt, 2, playlist_name, -1, SQLITE_STATIC);
+    rcode = sqlite3_step(stmt);
+
+    if (rcode != SQLITE_DONE) {
+        vocagtk_warn_sql_db(db);
+        sqlite3_finalize(stmt);
+        if (sql_err) *sql_err = rcode;
+        return 0;
+    }
+
+    // Get number of rows affected: 1 = newly inserted, 0 = already exists
+    int changes = sqlite3_changes(db);
+    sqlite3_finalize(stmt);
+
+    if (sql_err) *sql_err = SQLITE_OK;
+    DEBUG(
+        "Added song %d to playlist '%s' (changes: %d)",
+        song_id, playlist_name, changes
+    );
+    return changes;
+}
+
+/**
+ * Remove a song from a playlist
+ * @param db Database connection
+ * @param playlist_name Playlist name
+ * @param song_id Song ID to remove
+ * @return SQLite error code
+ */
+int db_playlist_remove_song(sqlite3 *db, char const *playlist_name, int song_id) {
+    char const *sql =
+        "DELETE FROM song_in_playlist WHERE playlist_name = ? AND song_id = ?;";
+    sqlite3_stmt *stmt;
+    int rcode = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rcode != SQLITE_OK) {
+        vocagtk_warn_sql_db(db);
+        return rcode;
+    }
+
+    sqlite3_bind_text(stmt, 1, playlist_name, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, song_id);
+    rcode = sqlite3_step(stmt);
+
+    if (rcode != SQLITE_DONE) {
+        vocagtk_warn_sql_db(db);
+        sqlite3_finalize(stmt);
+        return rcode;
+    }
+
+    DEBUG("Removed song %d from playlist '%s'", song_id, playlist_name);
+    sqlite3_finalize(stmt);
+    return SQLITE_OK;
+}
+
+/**
+ * Get all songs in a playlist
+ * @param db Database connection
+ * @param playlist_name Playlist name
+ * @param stmt Output parameter for prepared statement (caller must finalize)
+ * @return SQLite error code
+ *
+ * Usage:
+ *   sqlite3_stmt *stmt;
+ *   if (db_playlist_get_songs(db, "Default", &stmt) == SQLITE_OK) {
+ *       while (sqlite3_step(stmt) == SQLITE_ROW) {
+ *           VocagtkSong *song = db_song_from_row(stmt, NULL);
+ *           // use song...
+ *           g_object_unref(song);
+ *       }
+ *       sqlite3_finalize(stmt);
+ *   }
+ */
+int db_playlist_get_songs(sqlite3 *db, char const *playlist_name, sqlite3_stmt **stmt) {
+    char const *sql =
+        "SELECT s.id, s.title, s.artist, s.image_url, s.publish_date "
+        "FROM song s "
+        "JOIN song_in_playlist sip ON s.id = sip.song_id "
+        "WHERE sip.playlist_name = ? "
+        "ORDER BY s.id ASC;";
+
+    int rcode = sqlite3_prepare_v2(db, sql, -1, stmt, NULL);
+    if (rcode != SQLITE_OK) {
+        vocagtk_warn_sql_db(db);
+        return rcode;
+    }
+
+    sqlite3_bind_text(*stmt, 1, playlist_name, -1, SQLITE_STATIC);
+    return SQLITE_OK;
 }
