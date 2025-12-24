@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
   <gresource prefix="/moe/florious0721/vocagtk">
+    <file compressed="true" preprocess="xml-stripblanks">ui/ctrl.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/entry.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/entrylist.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/main.ui</file>

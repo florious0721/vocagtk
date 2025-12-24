@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<interface>
+  <object id='playlist_control' class='GtkBox'>
+    <property name='orientation'>horizontal</property>
+    <property name='spacing'>5</property>
+    <property name='margin-start'>10</property>
+    <property name='margin-end'>10</property>
+    <property name='margin-top'>10</property>
+    <property name='margin-bottom'>10</property>
+
+    <child><object id='field' class='GtkEntry'/></child>
+
+    <child><object id='create' class='GtkButton'>
+      <property name='label'>Create</property>
+    </object></child>
+
+    <child><object id='delete' class='GtkButton'>
+      <property name='halign'>end</property>
+      <property name='label'>delete</property>
+    </object></child>
+  </object>
+</interface>

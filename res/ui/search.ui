@@ -1,67 +1,36 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <interface>
-  <object id='searchPanel' class='GtkBox'>
-    <property name='orientation'>vertical</property>
+  <object id='search_panel' class='GtkBox'>
+    <property name='orientation'>horizontal</property>
     <property name='spacing'>10</property>
     <property name='margin-bottom'>10</property>
     <property name='margin-end'>10</property>
     <property name='margin-start'>10</property>
     <property name='margin-top'>10</property>
 
-    <!-- Search input row -->
-    <child><object class='GtkBox'>
-      <property name='orientation'>horizontal</property>
-      <property name='spacing'>10</property>
-
-      <!-- Search entry -->
-      <child><object id='searchField' class='GtkEntry'>
-        <property name='placeholder-text'>Begin your search here (｢･ω･)｢</property>
-        <property name='hexpand'>true</property>
-      </object></child>
-
-      <!-- Search button -->
-      <child><object id='searchButton' class='GtkButton'>
-        <property name='label'>Search</property>
-      </object></child>
-    </object></child>
-
-    <!-- Filter row -->
-    <child><object class='GtkBox'>
-      <property name='orientation'>horizontal</property>
-      <property name='spacing'>10</property>
-
-      <!-- Filter label -->
-      <child><object class='GtkLabel'>
-        <property name='label'>Filter by type:</property>
-        <property name='halign'>start</property>
-      </object></child>
-
-      <!-- Filter combo box -->
-      <child><object id='typeSelector' class='GtkDropDown'>
-        <!--<property name='hexpand'>true</property>-->
-        <property name='selected'>0</property>
-        <property name='model'><object class='GtkStringList'>
-          <items>
-            <item translatable='yes'>Album</item>
-            <item translatable='yes'>Artist</item>
-            <item translatable='yes'>Song</item>
-          </items>
-        </object></property>
-      </object></child>
-    </object></child>
-
-    <!-- Results placeholder -->
-    <child><object id='results' class='GtkListView'>
-      <property name='model'><object class='GtkMultiSelection'>
-        <property name='model'><object id='resultList' class='GListStore'>
-          <property name='item-type'>VocagtkEntry</property>
-        </object></property>
-      </object></property>
-
-      <property name='factory'><object id='entryFactory' class='GtkSignalListItemFactory'>
+    <child><object id='type_selector' class='GtkDropDown'>
+      <!--<property name='hexpand'>true</property>-->
+      <property name='selected'>0</property>
+      <property name='model'><object class='GtkStringList'>
+        <items>
+          <item translatable='yes'>Anything</item>
+          <item translatable='yes'>Album</item>
+          <item translatable='yes'>Artist</item>
+          <item translatable='yes'>Song</item>
+        </items>
       </object></property>
     </object></child>
 
+    <!-- Search entry -->
+    <child><object id='search_field' class='GtkEntry'>
+      <property name='placeholder-text'>Begin your search here (｢･ω･)｢</property>
+      <property name='hexpand'>true</property>
+    </object></child>
+
+    <!-- Search button -->
+    <child><object id='search_button' class='GtkButton'>
+      <property name='label'>Search</property>
+    </object></child>
   </object>
 </interface>
 

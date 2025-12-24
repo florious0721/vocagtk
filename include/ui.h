@@ -1,0 +1,34 @@
+#ifndef _VOCAGTK_UI_H
+#define _VOCAGTK_UI_H
+#include <gtk/gtk.h>
+#include "helper.h"
+
+#include "artist.h"
+
+typedef struct {
+    AppState *app;
+    GtkSelectionModel *select;
+    GListStore *store;
+    int songlist_id;
+} EntryListCtx;
+
+
+void build_home(GtkBuilder *main, AppState *ctx);
+
+void build_search(GtkBuilder *main, AppState *ctx);
+
+void build_rss_artist_box(GtkBuilder *main, AppState *ctx);
+
+void build_rss_song_box(GtkBuilder *main, AppState *ctx);
+
+void build_playlist(GtkBuilder *main, AppState *ctx);
+
+void call_search(AppState *ctx);
+void call_init_rss_artist(AppState *ctx);
+//void call_update_rss_song(AppState *ctx, int artist_id);
+
+void update_artist(AppState *ctx, VocagtkArtist *artist);
+void update_artists(AppState *ctx);
+void refresh_rss_song(AppState *ctx);
+
+#endif

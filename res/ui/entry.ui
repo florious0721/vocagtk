@@ -25,11 +25,13 @@
         <child><object id='type_label' class='GtkLabel'/></child>
 
         <child><object id='main_info' class='GtkLabel'>
+          <property name='halign'>start</property>
           <property name='ellipsize'>end</property>
         </object></child>
       </object></child>
 
       <child><object id='sub_info' class='GtkLabel'>
+        <property name='halign'>start</property>
         <property name='ellipsize'>end</property>
       </object></child>
     </object></child>
@@ -38,7 +40,7 @@
       <property name='orientation'>vertical</property>
       <property name='spacing'>5</property>
 
-      <child><object id='watch' class='GtkButton'>
+      <child><object id='add_or_remove' class='GtkButton'>
         <property name='label'>Add/Subscribe 👁</property>
         <property name='tooltip-text'>Add to playlist or subscribe</property>
       </object></child>

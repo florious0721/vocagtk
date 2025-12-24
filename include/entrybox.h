@@ -3,7 +3,7 @@
 #include <gtk/gtk.h>
 
 #include "entry.h"
-#include "helper.h"
+#include "ui.h"
 
 // *INDENT-OFF*
 G_BEGIN_DECLS
@@ -19,7 +19,10 @@ G_DECLARE_FINAL_TYPE(
 
 void vocagtk_entry_box_bind(VocagtkEntryBox *self, VocagtkEntry *entry);
 
-VocagtkEntryBox *vocagtk_entry_box_new(AppState *ctx, VocagtkEntry *entry);
+VocagtkEntryBox *vocagtk_entry_box_new(
+    bool is_remove,
+    EntryListCtx *list, VocagtkEntry *entry, GtkListItem *item
+);
 
 typedef struct _VocagtkEntryBox {
     GtkWidget parent_instance;
@@ -28,11 +31,12 @@ typedef struct _VocagtkEntryBox {
     GtkLabel  *type_label;
     GtkLabel  *main_info;
     GtkLabel  *sub_info;
-    GtkButton *watch; // Add or subscribe
+    GtkButton *add_or_remove; // Add or subscribe
     GtkButton *view_src;
 
-    AppState *app; // Store app state to get access to db
+    EntryListCtx *list;
     VocagtkEntry *entry; // A reference to the entry bound to this box, but this won't add reference count
+    GtkListItem *item;
 } VocagtkEntryBox;
 
 G_END_DECLS

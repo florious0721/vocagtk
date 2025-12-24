@@ -1,10 +1,9 @@
 #ifndef _VOCAGTK_ALBUM_H
 #define _VOCAGTK_ALBUM_H
 
-#include <curl/curl.h>
 #include <glib-object.h>
-#include <sqlite3.h>
-#include <yyjson.h>
+
+#include "helper.h"
 
 // Avoid uncrustify's wrong indent because of macro usage
 // *INDENT-OFF*
@@ -19,26 +18,24 @@ typedef gint VocagtkAlbumId;
 /*!
  * @brief
  *   Creates a new album object with its id in VocaDB.
- *   The function will firstly attempt to look up its data in the local database.
- *   If the data of album is not in the local database,
- *   the function will fetch the data from VocaDB.
+ *   The function will first attempt to look up its data in the local database.
+ *   If the album is not found in the local database, the function will fetch
+ *   the album information from VocaDB and update the local database.
  *
- * @param id The id of album in VocaDB.
- * @param db The local database for query cache.
- * @param handle
- *   The curl handle to use if the information of album is not in the `db`.
+ * @param id
+ *   The id of the album in VocaDB.
+ * @param ctx
+ *   Application state which provides the local database handle and downloader
+ *   used for remote fetching.
  *
  * @returns
  *   A new VocagtkAlbum instance.
- *   The data is owned by the caller of the function.
+ *   The returned object is owned by the caller.
  */
 VocagtkAlbum *vocagtk_album_new(
     VocagtkAlbumId id,
-    sqlite3 *db, CURL *handle
+    AppState *ctx
 );
-
-VocagtkAlbum *vocagtk_album_new_from_db(gint id, sqlite3 *db, int *err);
-VocagtkAlbum *vocagtk_album_new_from_json(yyjson_val *json);
 
 /*!
  * @brief Creates a new album object from JSON and saves it to the database.
@@ -54,11 +51,9 @@ VocagtkAlbum *vocagtk_album_new_from_json(yyjson_val *json);
  *   A new VocagtkAlbum instance.
  *   The data is owned by the caller of the function.
  */
-VocagtkAlbum *vocagtk_album_new_from_json_with_db(
+/*VocagtkAlbum *vocagtk_album_new_from_json_with_db(
     yyjson_val *json, sqlite3 *db, int *sql_err
-);
-
-int vocagtk_album_save_to_db(VocagtkAlbum const *self, sqlite3 *db);
+);*/
 
 /*!
  * @brief Gets the id of the album in VocaDB.
@@ -97,6 +92,7 @@ typedef struct _VocagtkAlbum {
     GString *title;
     GString *artist;
     GString *cover_url;
+    time_t publish_date;
 } VocagtkAlbum;
 
 G_END_DECLS

@@ -6,6 +6,8 @@ project(
   default_options: ['warning_level=3'],
 )
 
+add_global_arguments('-Wno-unused-parameter', language: 'c')
+
 dependencies = [
   dependency('glib-2.0'),
   dependency('gtk4'),
@@ -28,11 +30,19 @@ inc = include_directories('include/')
 src = files(
   'src/album.c',
   'src/artist.c',
-  'src/data.c',
+  'src/db.c',
+  'src/dl.c',
   'src/entry.c',
   'src/entrybox.c',
+  'src/parse.c',
   'src/song.c',
+  'src/ui.c',
+)
+main = files(
   'src/vocagtk.c',
+)
+testsrc = files(
+  'test/test.c'
 )
 
 exe = executable(
@@ -40,7 +50,15 @@ exe = executable(
   dependencies: dependencies,
   include_directories: inc,
   install: true,
-  sources: [src, res],
+  sources: [main, src, res],
+)
+
+dbtest = executable(
+  't',
+  dependencies: dependencies,
+  include_directories: inc,
+  install: false,
+  sources: [testsrc, src, res],
 )
 
 #test('basic', exe)

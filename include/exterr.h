@@ -17,11 +17,20 @@
 #define vocagtk_warn_sql(format, ...) \
     vocagtk_log(SQL_LOG_DOMAIN, G_LOG_LEVEL_WARNING, format, __VA_ARGS__)
 
+#define vocagtk_err_sql(format, ...) \
+    vocagtk_log(SQL_LOG_DOMAIN, G_LOG_LEVEL_ERROR , format, __VA_ARGS__)
+
 #define vocagtk_log_sql_rcode(level, rcode) \
     vocagtk_log_sql(level, "%s", sqlite3_errstr(rcode))
 
 #define vocagtk_warn_sql_rcode(rcode) \
-    vocagtk_log_curl_rcode(G_LOG_LEVEL_WARNING, rcode)
+    vocagtk_log_sql_rcode(G_LOG_LEVEL_WARNING, rcode)
+
+#define vocagtk_log_sql_db(level, db) \
+    vocagtk_log_sql(level, "%s", sqlite3_errmsg(db))
+
+#define vocagtk_warn_sql_db(db) \
+    vocagtk_log_sql_db(G_LOG_LEVEL_WARNING, db)
 
 #define vocagtk_log_curl(level, format, ...) \
     vocagtk_log(CURL_LOG_DOMAIN, level, format, __VA_ARGS__)
@@ -34,3 +43,6 @@
 
 #define vocagtk_warn_curl_rcode(rcode) \
     vocagtk_log_curl_rcode(G_LOG_LEVEL_WARNING, rcode)
+
+#define vocagtk_err_curl_rcode(rcode) \
+    vocagtk_log_curl(G_LOG_LEVEL_ERROR, "%s", curl_easy_strerror(rcode))
