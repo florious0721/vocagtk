@@ -73,7 +73,33 @@ static void unwatch(GtkButton *_, VocagtkEntryBox *box) {
     }
 }
 
-static void view_src(GtkButton *_, VocagtkEntryBox *box) {}
+static void view_src(GtkButton *_, VocagtkEntryBox *box) {
+    int id = -1;
+    char url[128] = {0};
+    switch (box->entry->type_label) {
+    case VOCAGTK_ENTRY_TYPE_LABEL_ALBUM:
+        id = box->entry->entry.album->id;
+        snprintf(url, sizeof(url), "https://vocadb.net/Al/%d", id);
+        break;
+    case VOCAGTK_ENTRY_TYPE_LABEL_ARTIST:
+        id = box->entry->entry.artist->id;
+        snprintf(url, sizeof(url), "https://vocadb.net/Ar/%d", id);
+        break;
+    case VOCAGTK_ENTRY_TYPE_LABEL_SONG:
+        id = box->entry->entry.song->id;
+        snprintf(url, sizeof(url), "https://vocadb.net/S/%d", id);
+        break;
+    default:
+        DEBUG("Unknown entry type for view_src");
+        return;
+    }
+    DEBUG("Opening VocaDB URL: %s", url);
+    GtkUriLauncher *launcher = gtk_uri_launcher_new(url);
+    gtk_uri_launcher_launch(launcher, NULL, NULL, NULL, NULL);
+    g_object_unref(launcher);
+}
+
+
 
 static void vocagtk_entry_box_dispose(GObject *obj) {
     gtk_widget_dispose_template(GTK_WIDGET(obj), VOCAGTK_TYPE_ENTRY_BOX);
